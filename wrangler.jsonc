@@ -9,7 +9,14 @@
 	"compatibility_date": "2025-11-28",
 	"observability": {
 		"enabled": true
-	}
+	},
+	/**
+	 * Environment Variables (非敏感信息)
+	 * https://developers.cloudflare.com/workers/configuration/environment-variables/
+	 */
+	"vars": {
+		"GMAIL_CLIENT_ID": "134454547844-efgnjs07vgjban5gn3mvu29vqaocguau.apps.googleusercontent.com"
+	},
 	/**
 	 * Custom Domain (configured via Cloudflare Dashboard)
 	 * 自定义域名（通过 Cloudflare Dashboard 配置）
