@@ -36,6 +36,12 @@ export class GmailService {
     private clientSecret: string;
     private refreshToken: string;
 
+    // 静态缓存，用于在 Worker 实例存活期间复用 token
+    private static tokenCache: {
+        accessToken: string;
+        expiresAt: number;
+    } | null = null;
+
     constructor(clientId: string, clientSecret: string, refreshToken: string) {
         this.clientId = clientId;
         this.clientSecret = clientSecret;
@@ -45,8 +51,15 @@ export class GmailService {
     /**
      * 获取访问令牌
      * 使用 refresh token 获取新的 access token
+     * 包含简单的内存缓存机制
      */
     private async getAccessToken(): Promise<string> {
+        // 1. 检查缓存是否有效 (提前 30 秒过期以确保安全)
+        const now = Date.now();
+        if (GmailService.tokenCache && GmailService.tokenCache.expiresAt > now + 30000) {
+            return GmailService.tokenCache.accessToken;
+        }
+
         const tokenUrl = 'https://oauth2.googleapis.com/token';
 
         const params = new URLSearchParams({
@@ -70,7 +83,40 @@ export class GmailService {
         }
 
         const data = await response.json<GmailTokenResponse>();
+
+        // 2. 更新缓存
+        GmailService.tokenCache = {
+            accessToken: data.access_token,
+            // expires_in 是秒，转换为毫秒时间戳
+            expiresAt: now + (data.expires_in * 1000),
+        };
+
         return data.access_token;
+    }
+
+    /**
+     * 将字符串转换为标准 Base64 编码 (用于 MIME 内容)
+     */
+    private base64Encode(str: string): string {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(str);
+        let binaryString = '';
+        for (let i = 0; i < data.length; i++) {
+            binaryString += String.fromCharCode(data[i]);
+        }
+        return btoa(binaryString);
+    }
+
+    /**
+     * 使用 RFC 2047 编码邮件头部
+     * 格式: =?charset?encoding?encoded-text?=
+     */
+    private encodeHeader(str: string): string {
+        // 如果只包含 ASCII 字符，直接返回
+        if (/^[\x00-\x7F]*$/.test(str)) {
+            return str;
+        }
+        return `=?UTF-8?B?${this.base64Encode(str)}?=`;
     }
 
     /**
@@ -92,7 +138,7 @@ export class GmailService {
 
         // 基础头部
         lines.push(`To: ${to}`);
-        lines.push(`Subject: ${subject}`);
+        lines.push(`Subject: ${this.encodeHeader(subject)}`);
 
         // 可选头部
         if (from && from !== 'me') {
@@ -112,35 +158,34 @@ export class GmailService {
         const contentType = isHtml ? 'text/html; charset=utf-8' : 'text/plain; charset=utf-8';
         lines.push(`Content-Type: ${contentType}`);
         lines.push('MIME-Version: 1.0');
+        lines.push('Content-Transfer-Encoding: base64'); // 使用 base64 传输编码避免正文乱码
 
         // 空行分隔头部和正文
         lines.push('');
 
-        // 邮件正文
-        lines.push(content);
+        // 邮件正文 (使用标准 Base64 编码)
+        lines.push(this.base64Encode(content));
 
         return lines.join('\r\n');
     }
 
     /**
-     * 将字符串转换为 Base64URL 编码
+     * 将字符串转换为 Base64URL 编码 (用于 Gmail API payload)
      * 正确处理 UTF-8 编码,支持中文等多字节字符
      */
     private base64UrlEncode(str: string): string {
-        // 将字符串转换为 Uint8Array (UTF-8 编码)
+        // 这里输入的是已经构造好的 MIME 字符串（包含 ASCII 头部和 Base64 编码的正文）
+        // 所以可以直接处理，但为了保险，还是使用 TextEncoder
         const encoder = new TextEncoder();
         const data = encoder.encode(str);
 
-        // 将 Uint8Array 转换为二进制字符串
         let binaryString = '';
         for (let i = 0; i < data.length; i++) {
             binaryString += String.fromCharCode(data[i]);
         }
 
-        // 转换为 base64
         const base64 = btoa(binaryString);
 
-        // 转换为 base64url (替换字符并移除填充)
         return base64
             .replace(/\+/g, '-')
             .replace(/\//g, '_')
