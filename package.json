@@ -1,6 +1,6 @@
 {
-	"name": "shrill-flower-30cc",
-	"version": "0.0.0",
+	"name": "worker-mailsend",
+	"version": "1.0.0",
 	"private": true,
 	"scripts": {
 		"deploy": "wrangler deploy",
