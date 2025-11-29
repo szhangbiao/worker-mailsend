@@ -24,6 +24,7 @@ export interface SendMailRequest {
     bcc?: string[];
     from?: string;
     replyTo?: string;
+    isHtml?: boolean; // 是否为 HTML 格式
 }
 
 /**
@@ -31,6 +32,7 @@ export interface SendMailRequest {
  */
 export interface SendMailData {
     id: string;
+    threadId: string; // Gmail 线程 ID
     to: string;
     subject: string;
     sentAt: string;
@@ -42,6 +44,8 @@ export interface SendMailData {
 export interface MailStatusData {
     id: string;
     status: 'pending' | 'sent' | 'delivered' | 'failed';
+    threadId?: string; // Gmail 线程 ID
+    snippet?: string; // 邮件摘要
     checkedAt: string;
 }
 

@@ -6,6 +6,7 @@
 import type { Context } from 'hono';
 import type { SendMailRequest, SendMailData, MailStatusData } from '../types';
 import { successResponse, errorResponse } from '../utils/response';
+import { createGmailService } from '../services/gmail';
 
 /**
  * 发送邮件处理器
@@ -23,17 +24,32 @@ export async function sendMailHandler(c: Context) {
             );
         }
 
-        // TODO: 这里添加实际的邮件发送逻辑（使用 MailChannels 等）
-        // 示例响应数据
+        // 创建 Gmail 服务实例
+        const gmailService = createGmailService(c.env);
+
+        // 发送邮件
+        const result = await gmailService.sendEmail({
+            to: body.to,
+            subject: body.subject,
+            content: body.content,
+            from: body.from,
+            cc: body.cc,
+            bcc: body.bcc,
+            replyTo: body.replyTo,
+            isHtml: body.isHtml,
+        });
+
+        // 构造响应数据
         const mailData: SendMailData = {
-            id: crypto.randomUUID(),
+            id: result.id,
+            threadId: result.threadId,
             to: body.to,
             subject: body.subject,
             sentAt: new Date().toISOString(),
         };
 
         return c.json(
-            successResponse(mailData, 'Email sent successfully')
+            successResponse(mailData, 'Email sent successfully via Gmail')
         );
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
@@ -52,10 +68,27 @@ export async function getMailStatusHandler(c: Context) {
             return c.json(errorResponse('Mail ID is required'), 400);
         }
 
-        // TODO: 从数据库或 KV 中查询实际状态
+        // 创建 Gmail 服务实例
+        const gmailService = createGmailService(c.env);
+
+        // 获取邮件详情
+        const messageDetails = await gmailService.getMessageDetails(id);
+
+        // 解析状态
+        const labelIds = messageDetails.labelIds || [];
+        let status: 'pending' | 'sent' | 'delivered' | 'failed' = 'sent';
+
+        if (labelIds.includes('SENT')) {
+            status = 'delivered';
+        } else if (labelIds.includes('DRAFT')) {
+            status = 'pending';
+        }
+
         const statusData: MailStatusData = {
             id,
-            status: 'delivered',
+            status,
+            threadId: messageDetails.threadId,
+            snippet: messageDetails.snippet,
             checkedAt: new Date().toISOString(),
         };
 
