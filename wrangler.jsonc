@@ -18,6 +18,18 @@
 		"GMAIL_CLIENT_ID": "134454547844-efgnjs07vgjban5gn3mvu29vqaocguau.apps.googleusercontent.com"
 	},
 	/**
+	 * D1 Database Bindings
+	 * D1 数据库绑定
+	 * https://developers.cloudflare.com/d1/
+	 */
+	"d1_databases": [
+		{
+			"binding": "mailsend_db",
+			"database_name": "mailsend-db",
+			"database_id": "02c85c42-7b10-4494-afc9-88a554400fbe"
+		}
+	],
+	/**
 	 * Custom Domain (configured via Cloudflare Dashboard)
 	 * 自定义域名（通过 Cloudflare Dashboard 配置）
 	 * - mailsend.szhangbiao.cn

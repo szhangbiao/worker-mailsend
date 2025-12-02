@@ -56,3 +56,58 @@ export interface HealthCheck {
     status: 'ok' | 'error';
     timestamp: string;
 }
+
+/**
+ * 邮件日志记录（数据库）
+ */
+export interface EmailLog {
+    id: number;
+    message_id: string;
+    thread_id: string;
+    to_address: string;
+    subject: string;
+    from_address: string | null;
+    cc_addresses: string[] | null;
+    bcc_addresses: string[] | null;
+    is_html: boolean;
+    sent_at: string;
+    created_at: string;
+}
+
+/**
+ * 邮件日志插入数据
+ */
+export interface EmailLogInsert {
+    message_id: string;
+    thread_id: string;
+    to_address: string;
+    subject: string;
+    from_address?: string;
+    cc_addresses?: string[];
+    bcc_addresses?: string[];
+    is_html?: boolean;
+    sent_at: string;
+}
+
+/**
+ * 邮件历史查询请求参数
+ */
+export interface EmailHistoryQuery {
+    page?: number;        // 页码,从 1 开始
+    pageSize?: number;    // 每页数量,默认 20
+    toAddress?: string;   // 按收件人过滤
+}
+
+/**
+ * 邮件历史查询响应数据
+ */
+export interface EmailHistoryData {
+    logs: EmailLog[];     // 邮件记录列表
+    pagination: {
+        page: number;      // 当前页码
+        pageSize: number;  // 每页数量
+        hasMore: boolean;  // 是否有下一页
+    };
+}
+
+
