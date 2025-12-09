@@ -7,6 +7,7 @@ import type { Context } from 'hono';
 import type { SendMailRequest, SendMailData, MailStatusData, EmailHistoryData } from '../types';
 import { successResponse, errorResponse } from '../utils/response';
 import { createGmailService } from '../services/gmail';
+import { createServiceAccountGmailService } from '../services/gmail-service-account';
 import { createDatabaseService } from '../services/db';
 
 /**
@@ -25,8 +26,11 @@ export async function sendMailHandler(c: Context) {
             );
         }
 
-        // 创建 Gmail 服务实例
-        const gmailService = createGmailService(c.env);
+        // 创建 Gmail 服务实例 (自动选择认证方式)
+        // 优先使用 Service Account,如果未配置则使用 OAuth2
+        const gmailService = c.env.SERVICE_ACCOUNT_CLIENT_EMAIL && c.env.SERVICE_ACCOUNT_PRIVATE_KEY
+            ? createServiceAccountGmailService(c.env)
+            : createGmailService(c.env);
 
         // 发送邮件
         const result = await gmailService.sendEmail({
@@ -88,8 +92,10 @@ export async function getMailStatusHandler(c: Context) {
             return c.json(errorResponse('Mail ID is required'), 400);
         }
 
-        // 创建 Gmail 服务实例
-        const gmailService = createGmailService(c.env);
+        // 创建 Gmail 服务实例 (自动选择认证方式)
+        const gmailService = c.env.SERVICE_ACCOUNT_CLIENT_EMAIL && c.env.SERVICE_ACCOUNT_PRIVATE_KEY
+            ? createServiceAccountGmailService(c.env)
+            : createGmailService(c.env);
 
         // 获取邮件详情
         const messageDetails = await gmailService.getMessageDetails(id);

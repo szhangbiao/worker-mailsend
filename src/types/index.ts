@@ -14,6 +14,30 @@ export interface ApiResponse<T = any> {
 }
 
 /**
+ * Gmail OAuth2 Token 响应接口
+ * 用于 OAuth2 和 Service Account 认证
+ */
+export interface GmailTokenResponse {
+    access_token: string;
+    expires_in: number;
+    token_type: string;
+}
+
+/**
+ * Gmail 邮件发送选项
+ */
+export interface GmailSendOptions {
+    to: string;
+    subject: string;
+    content: string;
+    from?: string;
+    cc?: string[];
+    bcc?: string[];
+    replyTo?: string;
+    isHtml?: boolean;
+}
+
+/**
  * 邮件发送请求接口
  */
 export interface SendMailRequest {

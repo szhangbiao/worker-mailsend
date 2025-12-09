@@ -1,36 +1,37 @@
 /**
- * Gmail Service
- * Gmail 邮件发送服务
+ * Service Account Gmail Service
+ * Service Account Gmail 邮件发送服务
  * 
- * 使用 Gmail API 通过 OAuth2 认证发送邮件
+ * 使用 Google Service Account 通过 JWT 认证发送邮件
  */
 
+import { generateJWT } from '../utils/jwt';
 import type { GmailTokenResponse, GmailSendOptions } from '../types';
 
 /**
- * Gmail 服务类
+ * Service Account Gmail 服务类
  */
-export class GmailService {
-    private clientId: string;
-    private clientSecret: string;
-    private refreshToken: string;
+export class ServiceAccountGmailService {
+    private clientEmail: string;
+    private privateKey: string;
+    private subject?: string; // 用于域范围委派的用户邮箱
     private kv: KVNamespace;
 
-    constructor(clientId: string, clientSecret: string, refreshToken: string, kv: KVNamespace) {
-        this.clientId = clientId;
-        this.clientSecret = clientSecret;
-        this.refreshToken = refreshToken;
+    constructor(clientEmail: string, privateKey: string, subject: string | undefined, kv: KVNamespace) {
+        this.clientEmail = clientEmail;
+        this.privateKey = privateKey;
+        this.subject = subject;
         this.kv = kv;
     }
 
     /**
      * 获取访问令牌
-     * 使用 refresh token 获取新的 access token
+     * 使用 JWT 获取新的 access token
      * 使用 KV 存储缓存机制
      */
     private async getAccessToken(): Promise<string> {
         const now = Date.now();
-        const cacheKey = `gmail_token:${this.clientId}`;
+        const cacheKey = `gmail_sa_token:${this.clientEmail}`;
 
         // 1. 从 KV 读取缓存的 token
         const cachedData = await this.kv.get<{
@@ -43,44 +44,55 @@ export class GmailService {
             return cachedData.accessToken;
         }
 
-        // 3. 缓存无效，获取新的 access token
-        const tokenUrl = 'https://oauth2.googleapis.com/token';
+        try {
+            // 3. 生成 JWT
+            const jwt = await generateJWT({
+                clientEmail: this.clientEmail,
+                privateKey: this.privateKey,
+                scope: 'https://www.googleapis.com/auth/gmail.send',
+                subject: this.subject,
+            });
 
-        const params = new URLSearchParams({
-            client_id: this.clientId,
-            client_secret: this.clientSecret,
-            refresh_token: this.refreshToken,
-            grant_type: 'refresh_token',
-        });
+            // 4. 使用 JWT 交换 access token
+            const tokenUrl = 'https://oauth2.googleapis.com/token';
 
-        const response = await fetch(tokenUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: params.toString(),
-        });
+            const params = new URLSearchParams({
+                grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                assertion: jwt,
+            });
 
-        if (!response.ok) {
-            const error = await response.text();
-            throw new Error(`Failed to get access token: ${error}`);
+            const response = await fetch(tokenUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: params.toString(),
+            });
+
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(`Failed to get access token: ${error}`);
+            }
+
+            const data = await response.json<GmailTokenResponse>();
+
+            // 5. 将新 token 存储到 KV
+            const tokenData = {
+                accessToken: data.access_token,
+                // expires_in 是秒,转换为毫秒时间戳
+                expiresAt: now + (data.expires_in * 1000),
+            };
+
+            // 使用 expirationTtl 设置 KV 过期时间（秒）
+            await this.kv.put(cacheKey, JSON.stringify(tokenData), {
+                expirationTtl: data.expires_in,
+            });
+
+            return data.access_token;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            throw new Error(`Service Account authentication failed: ${message}`);
         }
-
-        const data = await response.json<GmailTokenResponse>();
-
-        // 4. 将新 token 存储到 KV
-        const tokenData = {
-            accessToken: data.access_token,
-            // expires_in 是秒，转换为毫秒时间戳
-            expiresAt: now + (data.expires_in * 1000),
-        };
-
-        // 使用 expirationTtl 设置 KV 过期时间（秒）
-        await this.kv.put(cacheKey, JSON.stringify(tokenData), {
-            expirationTtl: data.expires_in,
-        });
-
-        return data.access_token;
     }
 
     /**
@@ -101,7 +113,7 @@ export class GmailService {
      * 格式: =?charset?encoding?encoded-text?=
      */
     private encodeHeader(str: string): string {
-        // 如果只包含 ASCII 字符，直接返回
+        // 如果只包含 ASCII 字符,直接返回
         if (/^[\x00-\x7F]*$/.test(str)) {
             return str;
         }
@@ -163,8 +175,6 @@ export class GmailService {
      * 正确处理 UTF-8 编码,支持中文等多字节字符
      */
     private base64UrlEncode(str: string): string {
-        // 这里输入的是已经构造好的 MIME 字符串（包含 ASCII 头部和 Base64 编码的正文）
-        // 所以可以直接处理，但为了保险，还是使用 TextEncoder
         const encoder = new TextEncoder();
         const data = encoder.encode(str);
 
@@ -218,7 +228,7 @@ export class GmailService {
             return result;
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error';
-            throw new Error(`Gmail send error: ${message}`);
+            throw new Error(`Service Account Gmail send error: ${message}`);
         }
     }
 
@@ -245,27 +255,27 @@ export class GmailService {
             return await response.json();
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error';
-            throw new Error(`Gmail get message error: ${message}`);
+            throw new Error(`Service Account Gmail get message error: ${message}`);
         }
     }
 }
 
 /**
- * 创建 Gmail 服务实例
+ * 创建 Service Account Gmail 服务实例
  */
-export function createGmailService(env: Env): GmailService {
-    const clientId = env.GMAIL_CLIENT_ID;
-    const clientSecret = env.GMAIL_CLIENT_SECRET;
-    const refreshToken = env.GMAIL_REFRESH_TOKEN;
+export function createServiceAccountGmailService(env: Env): ServiceAccountGmailService {
+    const clientEmail = env.SERVICE_ACCOUNT_CLIENT_EMAIL;
+    const privateKey = env.SERVICE_ACCOUNT_PRIVATE_KEY;
+    const subject = env.SERVICE_ACCOUNT_EMAIL;
     const kv = env.MAIL_SEND_CACHE;
 
-    if (!clientId || !clientSecret || !refreshToken) {
-        throw new Error('Gmail credentials not configured');
+    if (!clientEmail || !privateKey) {
+        throw new Error('Service Account credentials not configured');
     }
 
     if (!kv) {
         throw new Error('GMAIL_TOKEN_CACHE KV namespace not configured');
     }
 
-    return new GmailService(clientId, clientSecret, refreshToken, kv);
+    return new ServiceAccountGmailService(clientEmail, privateKey, subject, kv);
 }

@@ -9,7 +9,11 @@ declare namespace Cloudflare {
         GMAIL_CLIENT_ID: "134454547844-efgnjs07vgjban5gn3mvu29vqaocguau.apps.googleusercontent.com";
         GMAIL_CLIENT_SECRET: string;
         GMAIL_REFRESH_TOKEN: string;
+        SERVICE_ACCOUNT_CLIENT_EMAIL?: string;
+        SERVICE_ACCOUNT_PRIVATE_KEY?: string;
+        SERVICE_ACCOUNT_EMAIL?: string;
         mailsend_db: D1Database;
+        MAIL_SEND_CACHE: KVNamespace;
     }
 }
 interface Env extends Cloudflare.Env { }

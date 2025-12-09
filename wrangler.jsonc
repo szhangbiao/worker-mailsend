@@ -30,6 +30,17 @@
 		}
 	],
 	/**
+	 * KV Namespace Bindings
+	 * KV 命名空间绑定
+	 * https://developers.cloudflare.com/kv/
+	 */
+	"kv_namespaces": [
+		{
+			"binding": "MAIL_SEND_CACHE",
+			"id": "c2ddb7ec7643445eabdcaa3b24784541"
+		}
+	],
+	/**
 	 * Custom Domain (configured via Cloudflare Dashboard)
 	 * 自定义域名（通过 Cloudflare Dashboard 配置）
 	 * - mailsend.szhangbiao.cn
