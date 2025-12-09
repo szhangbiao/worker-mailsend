@@ -67,17 +67,35 @@ function pemToArrayBuffer(pem: string): ArrayBuffer {
     let pemContents = pem
         .replace(pemHeader, '')
         .replace(pemFooter, '')
-        .replace(/\s/g, ''); // 移除所有空白字符
+        // 处理转义的换行符 (\\n)
+        .replace(/\\n/g, '')
+        // 移除所有空白字符（包括空格、制表符、换行符等）
+        .replace(/\s/g, '');
 
-    // Base64 解码
-    const binaryString = atob(pemContents);
-    const bytes = new Uint8Array(binaryString.length);
-
-    for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
+    // 验证 base64 内容是否有效
+    if (!pemContents || pemContents.length === 0) {
+        throw new Error('Private key is empty after removing PEM headers');
     }
 
-    return bytes.buffer;
+    // 验证是否只包含有效的 base64 字符
+    if (!/^[A-Za-z0-9+/]*={0,2}$/.test(pemContents)) {
+        throw new Error('Private key contains invalid base64 characters');
+    }
+
+    try {
+        // Base64 解码
+        const binaryString = atob(pemContents);
+        const bytes = new Uint8Array(binaryString.length);
+
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        return bytes.buffer;
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        throw new Error(`Failed to decode base64 private key: ${message}. Make sure the private key is in valid PEM format.`);
+    }
 }
 
 /**

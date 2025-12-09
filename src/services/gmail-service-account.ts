@@ -9,7 +9,7 @@ import { generateJWT } from '../utils/jwt';
 import type { GmailTokenResponse, GmailSendOptions } from '../types';
 
 /**
- * Service Account Gmail 服务类
+ * Service Account Gmail 服务类 需要开通 Google Workspace才能使用
  */
 export class ServiceAccountGmailService {
     private clientEmail: string;
