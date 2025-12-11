@@ -10,3 +10,6 @@ GMAIL_REFRESH_TOKEN=your-refresh-token-here
 # SERVICE_ACCOUNT_CLIENT_EMAIL=worker-mailsend@your-project.iam.gserviceaccount.com
 # SERVICE_ACCOUNT_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\nMIIE...\n-----END PRIVATE KEY-----\n
 # SERVICE_ACCOUNT_EMAIL=user@yourdomain.com  # 可选:域范围委派时使用
+
+# MailerSend API
+MAILERSEND_API_TOKEN=your-mailersend-api-token-here

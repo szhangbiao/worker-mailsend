@@ -6,7 +6,6 @@
 import { Hono } from 'hono';
 import {
     sendMailHandler,
-    getMailStatusHandler,
     getEmailHistoryHandler,
     getEmailDetailHandler,
     deleteEmailHandler
@@ -20,12 +19,6 @@ export const mailRoutes = new Hono<{ Bindings: Env }>();
  * 发送邮件
  */
 mailRoutes.post('/send', sendMailHandler);
-
-/**
- * GET /mail/status/:id
- * 查询邮件状态
- */
-mailRoutes.get('/status/:id', getMailStatusHandler);
 
 /**
  * GET /mail/history

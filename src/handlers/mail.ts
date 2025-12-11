@@ -6,8 +6,7 @@
 import type { Context } from 'hono';
 import type { SendMailRequest, SendMailData, MailStatusData, EmailHistoryData } from '../types';
 import { successResponse, errorResponse } from '../utils/response';
-import { createGmailService } from '../services/gmail';
-import { createServiceAccountGmailService } from '../services/gmail-service-account';
+import { createMailerSendService } from '../services/mailersend';
 import { createDatabaseService } from '../services/db';
 
 /**
@@ -26,14 +25,11 @@ export async function sendMailHandler(c: Context) {
             );
         }
 
-        // 创建 Gmail 服务实例 (自动选择认证方式)
-        // 优先使用 Service Account,如果未配置则使用 OAuth2
-        const gmailService = c.env.SERVICE_ACCOUNT_CLIENT_EMAIL && c.env.SERVICE_ACCOUNT_PRIVATE_KEY
-            ? createServiceAccountGmailService(c.env)
-            : createGmailService(c.env);
+        // 创建 MailerSend 服务实例
+        const mailerSendService = createMailerSendService(c.env);
 
         // 发送邮件
-        const result = await gmailService.sendEmail({
+        const result = await mailerSendService.sendEmail({
             to: body.to,
             subject: body.subject,
             content: body.content,
@@ -73,52 +69,8 @@ export async function sendMailHandler(c: Context) {
         };
 
         return c.json(
-            successResponse(mailData, 'Email sent successfully via Gmail')
+            successResponse(mailData, 'Email sent successfully via MailerSend')
         );
-    } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        return c.json(errorResponse(message), 500);
-    }
-}
-
-/**
- * 查询邮件状态处理器
- */
-export async function getMailStatusHandler(c: Context) {
-    try {
-        const id = c.req.param('id');
-
-        if (!id) {
-            return c.json(errorResponse('Mail ID is required'), 400);
-        }
-
-        // 创建 Gmail 服务实例 (自动选择认证方式)
-        const gmailService = c.env.SERVICE_ACCOUNT_CLIENT_EMAIL && c.env.SERVICE_ACCOUNT_PRIVATE_KEY
-            ? createServiceAccountGmailService(c.env)
-            : createGmailService(c.env);
-
-        // 获取邮件详情
-        const messageDetails = await gmailService.getMessageDetails(id);
-
-        // 解析状态
-        const labelIds = messageDetails.labelIds || [];
-        let status: 'pending' | 'sent' | 'delivered' | 'failed' = 'sent';
-
-        if (labelIds.includes('SENT')) {
-            status = 'delivered';
-        } else if (labelIds.includes('DRAFT')) {
-            status = 'pending';
-        }
-
-        const statusData: MailStatusData = {
-            id,
-            status,
-            threadId: messageDetails.threadId,
-            snippet: messageDetails.snippet,
-            checkedAt: new Date().toISOString(),
-        };
-
-        return c.json(successResponse(statusData));
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         return c.json(errorResponse(message), 500);
