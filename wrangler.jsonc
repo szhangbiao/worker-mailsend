@@ -15,7 +15,8 @@
 	 * https://developers.cloudflare.com/workers/configuration/environment-variables/
 	 */
 	"vars": {
-		"GMAIL_CLIENT_ID": "134454547844-efgnjs07vgjban5gn3mvu29vqaocguau.apps.googleusercontent.com"
+		"GMAIL_CLIENT_ID": "134454547844-efgnjs07vgjban5gn3mvu29vqaocguau.apps.googleusercontent.com",
+		"N8N_GMAIL_WEBHOOK_URL": "https://szhangbiao-n8n-free.hf.space/webhook/send-gmail"
 	},
 	/**
 	 * D1 Database Bindings

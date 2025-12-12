@@ -8,6 +8,7 @@ import type { SendMailRequest, SendMailData, MailStatusData, EmailHistoryData } 
 import { successResponse, errorResponse } from '../utils/response';
 import { createMailerSendService } from '../services/mailersend';
 import { createDatabaseService } from '../services/db';
+import { createN8NGmailService } from '../services/n8n-gmail';
 
 /**
  * 发送邮件处理器
@@ -25,11 +26,23 @@ export async function sendMailHandler(c: Context) {
             );
         }
 
+        // 通过header里的X-USE-TOOL的值是 n8n-gmail还是 mailersend 来判断使用哪个服务
+        const useTool = c.req.header('X-USE-TOOL');
+        let mailSendService;
         // 创建 MailerSend 服务实例
-        const mailerSendService = createMailerSendService(c.env);
-
+        switch (useTool) {
+            case 'n8n-gmail':
+                mailSendService = createN8NGmailService(c.env);
+                break;
+            case 'mailersend':
+                mailSendService = createMailerSendService(c.env);
+                break;
+            default:
+                mailSendService = createMailerSendService(c.env);
+                break;
+        };
         // 发送邮件
-        const result = await mailerSendService.sendEmail({
+        const result = await mailSendService.sendEmail({
             to: body.to,
             subject: body.subject,
             content: body.content,
@@ -39,7 +52,6 @@ export async function sendMailHandler(c: Context) {
             replyTo: body.replyTo,
             isHtml: body.isHtml,
         });
-
         // 保存到数据库 (异步,不阻塞响应)
         try {
             const dbService = createDatabaseService(c.env);
