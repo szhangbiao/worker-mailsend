@@ -122,12 +122,34 @@ export class N8NGmailService {
             }
 
             // 4. 解析成功响应
-            // N8N Gmail 节点返回真实的 Gmail API 数据
-            const result = await response.json<N8NWebhookResponse>();
+            // 先获取响应文本以便调试
+            const responseText = await response.text();
+
+            // 检查响应是否为空
+            if (!responseText || responseText.trim() === '') {
+                throw new Error('N8N Webhook returned empty response. Please check your N8N workflow configuration.');
+            }
+
+            // 尝试解析 JSON
+            let result: N8NWebhookResponse;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                // 提供更详细的错误信息，包括实际响应内容（截断以避免过长）
+                const preview = responseText.substring(0, 200);
+                throw new Error(
+                    `N8N Webhook returned invalid JSON. Response preview: "${preview}...". ` +
+                    `Please ensure your N8N workflow has a "Respond to Webhook" node that returns JSON.`
+                );
+            }
 
             // 验证返回数据
             if (!result.id || !result.threadId) {
-                throw new Error('Invalid response from N8N: missing id or threadId');
+                // 提供实际返回的数据以便调试
+                throw new Error(
+                    `Invalid response from N8N: missing id or threadId. ` +
+                    `Received: ${JSON.stringify(result)}`
+                );
             }
 
             return {
