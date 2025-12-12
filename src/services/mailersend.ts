@@ -96,9 +96,7 @@ export class MailerSendService {
         } = options;
 
         const payload: MailerSendEmailPayload = {
-            from: from
-                ? this.parseEmailAddress(from)
-                : { email: this.fromEmail, name: this.fromName },
+            from: { email: this.fromEmail, name: from ? from : this.fromName },
             to: [this.parseEmailAddress(to)],
             subject,
         };

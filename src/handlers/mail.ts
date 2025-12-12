@@ -29,16 +29,20 @@ export async function sendMailHandler(c: Context) {
         // 通过header里的X-USE-TOOL的值是 n8n-gmail还是 mailersend 来判断使用哪个服务
         const useTool = c.req.header('X-USE-TOOL');
         let mailSendService;
+        let toolName;
         // 创建 MailerSend 服务实例
         switch (useTool) {
             case 'n8n-gmail':
                 mailSendService = createN8NGmailService(c.env);
+                toolName = 'N8N Gmail';
                 break;
             case 'mailersend':
                 mailSendService = createMailerSendService(c.env);
+                toolName = 'MailerSend'
                 break;
             default:
                 mailSendService = createMailerSendService(c.env);
+                toolName = 'MailerSend'
                 break;
         };
         // 发送邮件
@@ -81,7 +85,7 @@ export async function sendMailHandler(c: Context) {
         };
 
         return c.json(
-            successResponse(mailData, 'Email sent successfully via MailerSend')
+            successResponse(mailData, 'Email sent successfully via ' + toolName)
         );
     } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
